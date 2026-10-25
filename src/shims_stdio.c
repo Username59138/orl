@@ -51,11 +51,11 @@ static wint_t b_getwc(FILE *fp) { return getwc(F(fp)); }
 static wint_t b_ungetwc(wint_t c, FILE *fp) { return ungetwc(c, F(fp)); }
 static wint_t b_fputwc(wchar_t c, FILE *fp) { return fputwc(c, F(fp)); }
 
-static int b_vfprintf(FILE *fp, const char *fmt, va_list ap) { return vfprintf(F(fp), fmt, ap); }
+static int b_vfprintf(FILE *fp, const char *fmt, va_list ap) { return shim_vfprintf(F(fp), fmt, ap); }
 static int b_fprintf(FILE *fp, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    int r = vfprintf(F(fp), fmt, ap);
+    int r = shim_vfprintf(F(fp), fmt, ap);
     va_end(ap);
     return r;
 }

@@ -23,6 +23,7 @@ extern char __sF[]; // struct __sFILE[3], 152 bytes each
 extern int fprintf(void *fp, const char *fmt, ...);
 extern int fflush(void *fp);
 extern int fileno(void *fp);
+extern int snprintf(char *buf, size_t n, const char *fmt, ...);
 
 // unistd / string / malloc
 extern long sysconf(int name);
@@ -102,6 +103,18 @@ static void test_stdio(void) {
     CHECK(fprintf(stream(2), "[testabi] written through &__sF[2]\n") > 0, "fprintf(&__sF[2])");
     CHECK(fflush(stream(2)) == 0, "fflush(&__sF[2])");
     CHECK(fileno(stream(1)) == 1 && fileno(stream(2)) == 2, "fileno(&__sF[1..2])");
+
+    // long double varargs are quads in SSE registers, not x87 on the stack
+    char buf[64];
+    snprintf(buf, sizeof buf, "%.3Lf|%d|%s", 1.5L, 42, "x");
+    CHECK(strcmp(buf, "1.500|42|x") == 0, "snprintf %Lf keeps the arguments after it");
+    snprintf(buf, sizeof buf, "%*.*Lf|%Lg|%-4d|%.2f", 8, 2, 2.25L, -0.125L, 7, 0.5);
+    CHECK(strcmp(buf, "    2.25|-0.125|7   |0.50") == 0, "snprintf %*.*Lf, %Lg, mixed");
+    int n = snprintf(buf, 4, "%Lf", 1.0L);
+    CHECK(n == 8 && strcmp(buf, "1.0") == 0, "snprintf %Lf truncation");
+    snprintf(buf, sizeof buf, "%d %5s %%", 7, "ab");
+    CHECK(strcmp(buf, "7    ab %") == 0, "snprintf without long double");
+    CHECK(fprintf(stream(2), "[testabi] fprintf %%Lf: %.2Lf\n", 3.25L) == 28, "fprintf %Lf");
 }
 
 static void test_libc(void) {

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include <stdarg.h>
+#include <stdio.h>
 
 // One table per area (shims_*.c), each terminated by { NULL, NULL }.
 // `addr` is a function or, for data symbols like __sF, a variable.
 typedef struct { const char *name; void *addr; } shim_entry;
 #define SHIM(name) { #name, (void *)b_##name }
 
-extern const shim_entry shims_core[], shims_stdio[], shims_signal[],
+extern const shim_entry shims_core[], shims_stdio[], shims_printf[], shims_signal[],
                         shims_net[], shims_sys[], shims_dl[];
 
 // Call once before loading anything.
@@ -21,6 +23,10 @@ int shim_host_blocked(const char *name);
 
 // Full lookup as the library would see it: shim, else host unless blocked.
 void *shim_resolve(const char *name);
+
+// printf with a va_list filled by bionic code (long double = IEEE quad).
+int shim_vsnprintf(char *buf, size_t n, const char *fmt, va_list ap);
+int shim_vfprintf(FILE *fp, const char *fmt, va_list ap);
 
 // bionic-style FORTIFY failure: print and abort.
 __attribute__((noreturn, format(printf, 1, 2)))

@@ -6,8 +6,8 @@
 // corrupting memory.
 //
 // This file: the registry, core libc bits, liblog, FORTIFY helpers.
-// Other areas: shims_stdio.c, shims_signal.c, shims_net.c, shims_sys.c,
-// shims_dl.c.
+// Other areas: shims_stdio.c, shims_printf.c, shims_signal.c, shims_net.c,
+// shims_sys.c, shims_dl.c.
 
 #define _GNU_SOURCE
 #include "shims.h"
@@ -163,7 +163,7 @@ static int b___android_log_buf_write(int buf_id, int prio, const char *tag, cons
 
 static int b___android_log_vprint(int prio, const char *tag, const char *fmt, va_list ap) {
     char buf[4096];
-    vsnprintf(buf, sizeof buf, fmt, ap);
+    shim_vsnprintf(buf, sizeof buf, fmt, ap);
     return b___android_log_write(prio, tag, buf);
 }
 
@@ -177,7 +177,7 @@ static int b___android_log_print(int prio, const char *tag, const char *fmt, ...
 
 static void b___android_log_assert(const char *cond, const char *tag, const char *fmt, ...) {
     char buf[4096] = "";
-    if (fmt) { va_list ap; va_start(ap, fmt); vsnprintf(buf, sizeof buf, fmt, ap); va_end(ap); }
+    if (fmt) { va_list ap; va_start(ap, fmt); shim_vsnprintf(buf, sizeof buf, fmt, ap); va_end(ap); }
     fprintf(stderr, "F/%s: assertion %s: %s\n", tag ? tag : "", cond ? cond : "", buf);
     abort();
 }
@@ -199,7 +199,7 @@ const shim_entry shims_core[] = {
 };
 
 static const shim_entry *const tables[] = {
-    shims_core, shims_stdio, shims_signal, shims_net, shims_sys, shims_dl,
+    shims_core, shims_stdio, shims_printf, shims_signal, shims_net, shims_sys, shims_dl,
 };
 
 void *shim_lookup(const char *name) {

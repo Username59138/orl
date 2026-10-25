@@ -47,7 +47,7 @@ which is built for the real `x86_64-linux-android26` target:
 | setjmp | `jmp_buf` is 88 bytes (glibc 200): own implementation |
 | netdb | `addrinfo` swaps `ai_canonname`/`ai_addr`; `AI_`/`NI_`/`EAI_` values |
 | sysconf | every `_SC_*` number is different |
-| long double | IEEE quad on Android x86_64, x87 80-bit in glibc |
+| long double | IEEE quad on Android x86_64, x87 80-bit in glibc (math, `strtold`, `printf("%Lf")` varargs) |
 | semaphores | `sem_t` is 16 bytes (glibc 32): own futex implementation |
 | termios | kernel `struct termios` (36 bytes, glibc 60) |
 | misc | `mallinfo` fields are `size_t`, `strerror_r` is POSIX, `__assert` argument order, static recursive mutex initializer, locale names, FORTIFY helpers |
@@ -76,8 +76,10 @@ Actually running the client's code isn't possible yet: it needs JNI (stage 3).
 - Everything not shimmed falls back to glibc. That's checked for every libc
   function libroblox imports, but a new client version may import more:
   check `BLOCKED` and new names in `--imports` after updating.
-- `printf("%Lf")` with a `long double` argument prints garbage (the value is
-  quad, glibc reads x87). `PTHREAD_COND_INITIALIZER_MONOTONIC_NP` isn't
+- `printf("%Lf")` narrows the quad to x87 (64-bit mantissa instead of 113),
+  and positional `%1$Lf` isn't handled. `scanf("%Lf")` still stores an x87
+  value where the caller expects a quad: the value is wrong, but the write
+  stays inside the buffer. `PTHREAD_COND_INITIALIZER_MONOTONIC_NP` isn't
   translated.
 - Static TLS relocations (`R_X86_64_TPOFF64` etc.) aren't supported yet;
   Android libraries usually use emutls, so this may never be needed.
