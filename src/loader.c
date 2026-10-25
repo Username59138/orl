@@ -186,6 +186,8 @@ static void apply_rela(so_module *m, const Elf64_Rela *r) {
         *where = resolve(m, sym) + r->r_addend;
         break;
     case R_X86_64_IRELATIVE: {
+        // Report mode must not execute any code from the library.
+        if (m->flags & SO_REPORT) break;
         uintptr_t (*resolver)(void) = (void *)(m->bias + r->r_addend);
         *where = resolver();
         break;
