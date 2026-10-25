@@ -69,6 +69,13 @@ tools/extract-apk.sh roblox.xapk          # .apk / .xapk / .apks
 ```
 
 You need the x86_64 build (in split bundles that's `config.x86_64.apk`).
+
+To see which Java methods the native code calls (and which natives Java
+calls through `RegisterNatives`):
+
+```sh
+tools/jni-surface.py apk-libs/libroblox.so base.apk   # reports in apk-libs/jni/
+```
 Actually running the client's code isn't possible yet: it needs JNI (stage 3).
 
 ## Known limitations
