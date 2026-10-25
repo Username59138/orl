@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Clearhead - minimal ELF loader for Android (bionic) x86_64 shared objects.
+// OpenRoLauncher - minimal ELF loader for Android (bionic) x86_64 shared objects.
 #pragma once
 #include <stddef.h>
 

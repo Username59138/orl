@@ -3,7 +3,7 @@ CC      ?= cc
 CFLAGS  ?= -O2 -g -Wall -Wextra
 LDLIBS  := -ldl
 
-BIN  := build/clearhead-run
+BIN  := build/orl-run
 SRCS := src/main.c src/loader.c src/shims_bionic.c
 
 # Test libraries, one per relocation format we support.

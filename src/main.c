@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// clearhead-run: load an Android x86_64 .so and either report its imports
+// orl-run: load an Android x86_64 .so and either report its imports
 // or call an exported `int fn(const char *)` entry point.
 
 #include "loader.h"
@@ -9,8 +9,8 @@
 
 static void usage(void) {
     fprintf(stderr,
-        "usage: clearhead-run [-v] --imports <lib.so>\n"
-        "       clearhead-run [-v] <lib.so> <entry> [arg]\n"
+        "usage: orl-run [-v] --imports <lib.so>\n"
+        "       orl-run [-v] <lib.so> <entry> [arg]\n"
         "\n"
         "  --imports  list every imported symbol and how it was resolved\n"
         "             (shim / host / MISSING), without running any code\n"

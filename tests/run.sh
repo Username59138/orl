@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-or-later
 set -u
-BIN=./build/clearhead-run
+BIN=./build/orl-run
 fail=0
 
 for lib in build/testlib_rela.so build/testlib_relr.so build/testlib_aps2.so; do

@@ -38,10 +38,10 @@ static const struct { const char *k, *v; } props[] = {
     { "ro.build.version.sdk",     "33" },
     { "ro.build.version.release", "13" },
     { "ro.product.cpu.abi",       "x86_64" },
-    { "ro.product.manufacturer",  "Clearhead" },
+    { "ro.product.manufacturer",  "OpenRoLauncher" },
     { "ro.product.model",         "Linux Desktop" },
-    { "ro.product.brand",         "clearhead" },
-    { "ro.hardware",              "clearhead" },
+    { "ro.product.brand",         "orl" },
+    { "ro.hardware",              "orl" },
 };
 
 static int b___system_property_get(const char *name, char *value) {
@@ -52,7 +52,7 @@ static int b___system_property_get(const char *name, char *value) {
             return (int)strlen(value);
         }
     }
-    if (getenv("CLEARHEAD_TRACE")) fprintf(stderr, "[shim] unknown property %s\n", name);
+    if (getenv("ORL_TRACE")) fprintf(stderr, "[shim] unknown property %s\n", name);
     value[0] = 0;
     return 0;
 }

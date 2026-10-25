@@ -1,12 +1,13 @@
-# Clearhead
+# OpenRoLauncher
 
 Открытый (GPL-3.0-or-later) запускатель Android-версии Roblox на Linux,
 по тому же принципу, что и Sober: берём нативную `libroblox.so` из x86_64 APK
 и запускаем её прямо в Linux, подставляя вместо Android свои реализации.
 Без эмулятора и без контейнера.
 
-> Название рабочее, его можно поменять. Проект не связан с Roblox Corporation
-> и с командой Vinegar/Sober.
+Короткое имя — **ORL**: `orl-run` (рантайм на C), `orl` (лаунчер).
+
+> Проект не связан с Roblox Corporation и с командой Vinegar/Sober.
 
 ## Статус
 
@@ -34,7 +35,7 @@
 Нужны `gcc` или `clang`, `make`; для тестов ещё `clang` и `lld`.
 
 ```sh
-make          # build/clearhead-run
+make          # build/orl-run
 make test     # три тестовые библиотеки, по одной на формат релокаций
 ```
 
@@ -42,7 +43,7 @@ make test     # три тестовые библиотеки, по одной н
 
 ```sh
 tools/extract-apk.sh roblox.apk          # или .xapk / .apks бандл
-./build/clearhead-run -v --imports apk-libs/libroblox.so > imports.txt
+./build/orl-run -v --imports apk-libs/libroblox.so > imports.txt
 ```
 
 Нужна именно x86_64-сборка: в бандле это `config.x86_64.apk`.
