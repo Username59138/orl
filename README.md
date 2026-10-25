@@ -1,73 +1,74 @@
 # OpenRoLauncher
 
-Открытый (GPL-3.0-or-later) запускатель Android-версии Roblox на Linux,
-по тому же принципу, что и Sober: берём нативную `libroblox.so` из x86_64 APK
-и запускаем её прямо в Linux, подставляя вместо Android свои реализации.
-Без эмулятора и без контейнера.
+An open-source (GPL-3.0-or-later) way to run the Android version of Roblox
+natively on Linux, using the same approach as Sober: take the native
+`libroblox.so` from the x86_64 APK and run it directly on Linux, replacing
+the Android platform with our own implementations. No emulator, no container.
 
-Короткое имя — **ORL**: `orl-run` (рантайм на C), `orl` (лаунчер).
+Short name: **ORL** — `orl-run` (runtime, C) and `orl` (launcher, Rust).
 
-> Проект не связан с Roblox Corporation и с командой Vinegar/Sober.
+> Not affiliated with Roblox Corporation or with the Vinegar/Sober team.
 
-## Статус
+## Status
 
-| Этап | Что | Состояние |
+| Stage | What | State |
 |---|---|---|
-| 1 | Извлечение `.so` из APK / split-бандла | ✅ `tools/extract-apk.sh` |
-| 2 | ELF-загрузчик + шимы bionic | ✅ прототип |
-| 3 | Фейковые JNI / JavaVM | ⏳ следующий |
-| 4 | Окно, Vulkan/EGL, звук, ввод (SDL2) | — |
-| 5 | Лаунчер: обычный и кастомный режимы | — |
-| 6 | Функции в духе RoPro | — |
+| 1 | Extract native libs from an APK / split bundle | ✅ `tools/extract-apk.sh` |
+| 2 | ELF loader + bionic shims | ✅ prototype |
+| 3 | Fake JNI / JavaVM | ⏳ next |
+| 4 | Window, Vulkan/EGL, audio, input (SDL2) | — |
+| 5 | Launcher: stock mode and custom mode | — |
+| 6 | Extra features (overlay, Discord RPC, asset mods...) | — |
 
-### Что умеет загрузчик
+### What the loader does
 
-- маппит `PT_LOAD`-сегменты, ставит правильные права, RELRO;
-- все форматы релокаций, которые выдаёт Android NDK: обычные RELA,
-  `DT_RELR`, упакованные Android-релокации (APS2, `DT_ANDROID_RELA`);
-- импорт символов: сначала наши шимы bionic, потом glibc хоста, иначе
-  заглушка-ловушка, которая при вызове печатает имя функции;
-- режим `--imports`: показывает каждый импортируемый символ и то, чем он
-  закрыт (shim / host / MISSING). Это карта того, что ещё надо написать.
+- maps `PT_LOAD` segments with correct protections, applies RELRO;
+- handles every relocation format the Android NDK emits: plain RELA,
+  `DT_RELR`, and Android packed relocations (APS2, `DT_ANDROID_RELA`);
+- binds imports: our bionic shims first, then the host glibc, otherwise a
+  trap stub that prints the symbol's name when called;
+- `--imports` mode: lists every imported symbol and how it was resolved
+  (shim / host / MISSING) without executing any code from the library.
+  This is the map of what still needs to be written.
 
-## Сборка
+## Building
 
-Нужны `gcc` или `clang`, `make`; для тестов ещё `clang` и `lld`.
+Requires `gcc` or `clang` and `make`; the tests also need `clang` and `lld`.
 
 ```sh
 make          # build/orl-run
-make test     # три тестовые библиотеки, по одной на формат релокаций
+make test     # three test libraries, one per relocation format
 ```
 
-## Попробовать на настоящем клиенте
+## Trying it on the real client
 
 ```sh
-tools/extract-apk.sh roblox.apk          # или .xapk / .apks бандл
+tools/extract-apk.sh roblox.xapk          # .apk / .xapk / .apks
 ./build/orl-run -v --imports apk-libs/libroblox.so > imports.txt
 ```
 
-Нужна именно x86_64-сборка: в бандле это `config.x86_64.apk`.
-Пришли `imports.txt` и вывод stderr, и по ним будет понятно, какие шимы писать.
+You need the x86_64 build (in split bundles that's `config.x86_64.apk`).
+Actually running the client's code isn't possible yet: it needs JNI (stage 3).
 
-Сейчас **запускать код** клиента ещё рано: ему нужен JNI (этап 3).
+## Known limitations
 
-## Известные ограничения
+- Falling back to glibc works for simple functions (`malloc`, `strlen`...),
+  but bionic and glibc differ in some struct layouts (`FILE`, `struct stat`,
+  `pthread_attr_t`, `sigaction`, `dirent`, locales). Those functions will be
+  moved into shims as they show up in `--imports`.
+- Static TLS relocations (`R_X86_64_TPOFF64` etc.) aren't supported yet;
+  Android libraries usually use emutls, so this may never be needed.
+- `DT_NEEDED` libraries aren't loaded: Android system libraries are replaced
+  entirely by shims.
 
-- Фолбэк на glibc работает для простых функций (`malloc`, `strlen`...), но
-  у bionic и glibc различаются некоторые структуры (`FILE`, `struct stat`,
-  `pthread_attr_t`, `sigaction`, `dirent`, локали). Такие функции придётся
-  переводить в шимы по мере того, как они всплывут в `--imports`.
-- Статический TLS (`R_X86_64_TPOFF64` и т. п.) пока не поддерживается;
-  Android-библиотеки обычно используют emutls, поэтому это может не понадобиться.
-- `DT_NEEDED` не загружаются: системные библиотеки Android целиком
-  заменяются шимами.
+## Principles
 
-## Принципы
+- We run the official client as-is. Anti-cheat and integrity checks are not
+  bypassed or modified.
+- Features live around the client (launcher, overlay, window, input, assets),
+  never inside game logic or process memory. No cheats.
+- Login happens inside the client. Our code never handles passwords or cookies.
 
-- Запускаем официальный клиент как есть. Античит и проверки целостности
-  не обходим и не модифицируем.
-- Логин происходит внутри клиента. Пароли и куки наш код не трогает.
+## License
 
-## Лицензия
-
-GPL-3.0-or-later, см. `LICENSE`.
+GPL-3.0-or-later, see `LICENSE`.
