@@ -63,7 +63,10 @@ struct so_module {
     size_t init_array_count;
 
     so_stats stats;
+    so_module *next;
 };
+
+static so_module *modules; // every successfully loaded module
 
 static size_t page_size(void) {
     static size_t ps;
@@ -138,7 +141,10 @@ void *so_sym(so_module *m, const char *name) {
 // Cache per index so each import is reported and trapped only once.
 static uintptr_t *resolved_cache;
 
+#define WEAK_NULL UINTPTR_MAX // cache marker for an import resolved to 0
+
 static uintptr_t resolve(so_module *m, uint32_t idx) {
+    if (resolved_cache[idx] == WEAK_NULL) return 0;
     if (resolved_cache[idx]) return resolved_cache[idx];
     Elf64_Sym *s = &m->symtab[idx];
     const char *name = m->strtab + s->st_name;
@@ -150,18 +156,21 @@ static uintptr_t resolve(so_module *m, uint32_t idx) {
         how = NULL; // internal reference, not an import
     } else if ((addr = (uintptr_t)shim_lookup(name))) {
         how = "shim"; m->stats.shim++;
+    } else if (shim_host_blocked(name)) {
+        // glibc has it, but with a different ABI: fail loudly when called
+        addr = (uintptr_t)make_trap(name);
+        how = "BLOCKED"; m->stats.blocked++;
     } else if ((addr = (uintptr_t)dlsym(RTLD_DEFAULT, name))) {
         how = "host"; m->stats.host++;
     } else if (ELF64_ST_BIND(s->st_info) == STB_WEAK) {
-        addr = 0; how = "weak-null"; m->stats.missing++;
+        addr = 0; how = "weak-null"; m->stats.weak++;
     } else {
         addr = (uintptr_t)make_trap(name);
         how = "MISSING"; m->stats.missing++;
     }
     if (how && (m->flags & SO_REPORT))
         printf("%-9s %s\n", how, name);
-    // weak-null resolves to 0; mark with 1 in cache? keep it simple: recompute
-    resolved_cache[idx] = addr;
+    resolved_cache[idx] = addr ? addr : WEAK_NULL;
     return addr;
 }
 
@@ -403,6 +412,8 @@ so_module *so_load(const char *path, int flags) {
         mprotect((void *)PAGE_DOWN(seg), PAGE_DOWN(seg + ph->p_memsz) - PAGE_DOWN(seg),
                  PROT_READ);
     }
+    m->next = modules;
+    modules = m;
     return m;
 }
 
@@ -416,3 +427,52 @@ void so_run_init(so_module *m) {
 }
 
 so_stats so_get_stats(so_module *m) { return m->stats; }
+
+/* ------------------------------------------------------------- registry --- */
+
+so_module *so_next(so_module *prev) { return prev ? prev->next : modules; }
+
+so_module *so_find_addr(const void *addr) {
+    for (so_module *m = modules; m; m = m->next)
+        if ((const uint8_t *)addr >= m->map && (const uint8_t *)addr < m->map + m->map_size)
+            return m;
+    return NULL;
+}
+
+static const char *base_name(const char *path) {
+    const char *slash = strrchr(path, '/');
+    return slash ? slash + 1 : path;
+}
+
+so_module *so_find_name(const char *name) {
+    for (so_module *m = modules; m; m = m->next)
+        if (strcmp(base_name(m->path), base_name(name)) == 0) return m;
+    return NULL;
+}
+
+const char *so_path(so_module *m) { return m->path; }
+void *so_base(so_module *m) { return m->map; }
+uintptr_t so_bias(so_module *m) { return m->bias; }
+
+const void *so_phdr(so_module *m, int *phnum) {
+    *phnum = m->phnum;
+    return m->phdr;
+}
+
+int so_addr_sym(so_module *m, const void *addr, const char **name, void **sym_addr) {
+    uintptr_t a = (uintptr_t)addr, best = 0;
+    const char *best_name = NULL;
+    for (size_t i = 1; i < m->nsyms; i++) {
+        Elf64_Sym *s = &m->symtab[i];
+        if (s->st_shndx == SHN_UNDEF || !s->st_value) continue;
+        uintptr_t v = m->bias + s->st_value;
+        if (v > a || v < best) continue;
+        if (s->st_size && a >= v + s->st_size) continue;
+        best = v;
+        best_name = m->strtab + s->st_name;
+    }
+    if (!best_name) return 0;
+    *name = best_name;
+    *sym_addr = (void *)best;
+    return 1;
+}
