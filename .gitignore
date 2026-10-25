@@ -1,0 +1,5 @@
+build/
+apk-libs/
+*.apk
+*.xapk
+*.apks
